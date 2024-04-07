@@ -1,0 +1,35 @@
+// Configure debug launch settings
+{
+    "version": "0.2.0",
+    "projectName": "${workspaceFolderBasename}",
+    "configurations": [
+        {
+            "name": "STLink debug",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/${config:project_name}/build/main.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "stutil",
+            "device": "STM32F446RE",
+            "interface": "swd",
+            "preLaunchTask": "Build all",
+            "svdFile": "/Users/jakeclarey/Downloads/STM32WB_svd/STM32WB_svd_V1.2/STM32WB55_CM4.svd",
+            "runToEntryPoint": "enabled",
+            "swoConfig": {
+                "enabled": true,
+                "cpuFrequency": 16000000,
+                "swoFrequency": 4000000,
+                "source": "probe",
+                "decoders": [
+                    {
+                        "label": "ITM port 0 output",
+                        "type": "console",
+                        "port": 0,
+                        "showOnStartup": true,
+                        "encoding": "ascii"
+                    }
+                ]
+            }
+        }
+    ]
+}
