@@ -1,38 +1,39 @@
-##########################################################################################################################
-# Makefile template rev 1.1 [12-14-23]
-##########################################################################################################################
+###################################################################################################
+# Makefile for MSP432P401R rev 1.0.1 [5/15/24]
+###################################################################################################
 
-# Project folder name holder
-PROJECT_NAME = 
+# Project folder name holder (default to build Blinky if not specified on CLI)
+PROJECT_NAME = Blinky
 
 # make target should be named "main"
 TARGET = main
 
+# WARNING: when optimizing for speed, floating point operations can be corrupted.
 DEBUG = 1
-OPT = -O0 # preferred optimization for edit->compile->debug
+OPT = -Os # preferred optimization. In order for speed: O0, O1, O2, O3, Ofast.
 
 # Build path
-BUILD_DIR = $(PROJECT_NAME)/build
+BUILD_DIR = !build
 
-###########################################################
-# List all files (.c) here placed in Core/Src/... folder
-# List all assembly (.s) files placed in project folder
-###########################################################
+###################################################################################################
+# sources
+###################################################################################################
 # C sources
-C_SOURCES = $(patsubst %.c,%.o,$(wildcard $(PROJECT_NAME)/Core/Src/*.c))
+C_SOURCES = $(wildcard $(PROJECT_NAME)/Src/*.c)
 
 # C++ sources
-CPP_SOURCES = $(patsubst %.cpp,%.o,$(wildcard $(PROJECT_NAME)/Core/Src/*.cpp))
+CPP_SOURCES = $(wildcard $(PROJECT_NAME)/Src/*.cpp)
 
 # ASM sources
-ASM_SOURCES = $(patsubst %.s,%.o,$(wildcard $(PROJECT_NAME)/*.s))
+ASM_SOURCES = $(wildcard $(PROJECT_NAME)/Src/*.s)
+ASM_SOURCES += $(wildcard !DeviceSpecific/*.s)
 
-#######################################
+###################################################################################################
 # binaries
-#######################################
+###################################################################################################
 PREFIX = arm-none-eabi-
 # The gcc compiler bin path can be either defined in make command via GCC_PATH variable (> make GCC_PATH=xxx)
-# either it can be added to the PATH environment variable.
+# or it can be added to the PATH environment variable.
 ifdef GCC_PATH
 CC = $(GCC_PATH)/$(PREFIX)gcc
 CPP = $(GCC_PATH)/$(PREFIX)g++
@@ -49,9 +50,9 @@ endif
 HEX = $(CP) -O ihex
 BIN = $(CP) -O binary -S
  
-#######################################
+###################################################################################################
 # CFLAGS
-#######################################
+###################################################################################################
 # cpu
 CPU = -mcpu=cortex-m4
 
@@ -62,7 +63,7 @@ FPU = -mfpu=fpv4-sp-d16
 FLOAT-ABI = -mfloat-abi=hard
 
 # mcu
-MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
+MCU = $(CPU) $(FPU) $(FLOAT-ABI)
 
 # macros for gcc
 # AS defines
@@ -77,15 +78,15 @@ AS_INCLUDES =
 
 # C includes
 C_INCLUDES =  \
--I$(PROJECT_NAME)/Core/Inc \
--I$(PROJECT_NAME)/Drivers/CMSIS/Device/ST/STM32WBxx/Include \
--I$(PROJECT_NAME)/Drivers/CMSIS/Include
+-I$(PROJECT_NAME)/Inc \
+-I!DeviceSpecific/CMSIS \
+-I!DeviceSpecific/Device 
 
 CPP_INCLUDES = \
--I$(PROJECT_NAME)/Core/Inc \
+-I$(PROJECT_NAME)/Inc \
 
 # compile gcc flags
-ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) -Wall
 
 CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
@@ -98,25 +99,54 @@ endif
 # Generate dependency information
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 
-#######################################
+###################################################################################################
 # LDFLAGS
-#######################################
+###################################################################################################
 # link script
-LDSCRIPT = $(PROJECT_NAME)/stm32wb55xx_flash_cm4.ld
+LDSCRIPT = !DeviceSpecific/stm32wb55xx_flash_cm4.ld
 
 # libraries
-LIBS = -lc -lm -lnosys
+LIBS = -lc -lm -lnosys 
 LIBDIR = 
 LDFLAGS = $(MCU) --specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
-# default action: build all
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+###################################################################################################
+# help
+###################################################################################################
+.PHONY: help
 
-.PHONY: clean
+# default action: help
+help:
+	@echo -----------------------------------------------------------------------------------------
+	@echo Available Targets:
+	@echo 	flash: Flashes main.bin in build directory to NUCLEO-WB55RG via stlink.
+	@echo 		Usage: make flash
+	@echo 	all PROJECT_NAME=folder_name: Builds specified project.
+	@echo 		Usage: make all PROJECT_NAME=folder_name
+	@echo 	clean: Cleans out the build directory.
+	@echo 		Usage: make clean
+	@echo 	help: Display this help text. 
+	@echo 		Usage: make help
+	@echo -----------------------------------------------------------------------------------------
 
-#######################################
+###################################################################################################
+# flash
+###################################################################################################
+.PHONY: flash
+
+flash: $(BUILD_DIR)/$(TARGET).bin
+	st-flash --reset write $< 0x08000000
+
+###################################################################################################
+# all
+###################################################################################################
+.PHONY: all
+
+all: clean | $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+
+###################################################################################################
 # build the application
-#######################################
+###################################################################################################
 # list of C objects
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
@@ -134,30 +164,41 @@ $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
 
 $(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
-	$(AS) -c $(CFLAGS) $< -o $@
+	$(AS) -c $(ASFLAGS) $< -o $@
 
 $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
-	$(SZ) $@
+	$(SZ) $@ -G
 
 $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 	$(HEX) $< $@
+	$(SZ) $@ -G
 	
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
-	$(BIN) $< $@	
-	
-$(BUILD_DIR):
+	$(BIN) $< $@
+	$(SZ) $@ --target=binary -G	
+
+$(BUILD_DIR): 
 	mkdir $@		
 
-#######################################
+###################################################################################################
 # clean
-#######################################
+###################################################################################################
+.PHONY: clean
+
+ifeq ($(OS), Windows_NT)
+clean:
+	del /f /Q $(BUILD_DIR)\
+
+else
 clean:
 	rm -f $(BUILD_DIR)/*
-  
-#######################################
+
+endif
+
+###################################################################################################
 # dependencies
-#######################################
+###################################################################################################
 -include $(wildcard $(BUILD_DIR)/*.d)
 
 # EOF #
