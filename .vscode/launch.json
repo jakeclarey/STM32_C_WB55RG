@@ -6,14 +6,13 @@
         {
             "name": "STLink debug",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/${config:project_name}/build/main.elf",
+            "executable": "${workspaceFolder}/!build/main.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "stutil",
-            "device": "STM32F446RE",
+            "device": "STM32WB55RG",
             "interface": "swd",
-            "preLaunchTask": "Build all",
-            "svdFile": "${workspaceFolder}/STM32WB55_CM4.svd",
+            "svdFile": "${workspaceFolder}/!DeviceSpecific/Device/STM32WB55_CM4.svd",
             "runToEntryPoint": "enabled",
             "swoConfig": {
                 "enabled": true,

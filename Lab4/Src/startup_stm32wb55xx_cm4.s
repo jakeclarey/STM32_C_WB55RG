@@ -107,6 +107,10 @@ Reset_Handler:
 
 /* Call static constructors */
   bl __libc_init_array
+
+/* Initialize UART printf */
+  bl uart_initialization
+
 /* Call the application s entry point.*/
   bl main
 

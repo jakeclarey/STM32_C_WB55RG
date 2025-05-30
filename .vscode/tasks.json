@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Open UART Terminal",
+      "group": "build",
+      "type": "shell",
+      "command": "screen",
+      "args": [
+        "/dev/tty.usbmodem*",
+        "115200",
+        "8N1"
+      ]
+    }
+  ]
+}

@@ -370,6 +370,23 @@ void SystemCoreClockUpdate(void) {
   SystemCoreClock = SystemCoreClock / tmp;
 }
 
+void uart_initialization(void) {
+  RCC->AHB2ENR |= RCC_AHB2ENR_GPIOBEN; // Enable GPIOB CLOCK
+  RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+
+  GPIOB->MODER |= (2 << 12);
+  GPIOB->MODER |= (2 << 14);
+  GPIOB->AFR[0] |= (7 << 28);
+  GPIOB->AFR[0] |= (7 << 24);
+
+  USART1->CR1 = 0x00;     // Clear ALL
+  USART1->BRR = (3 << 0); // Baud rate of 115200
+
+  USART1->CR1 |= (USART_CR1_UE); // UE = 1... Enable USART
+  USART1->CR1 |= (USART_CR1_RE); // RE = 1... Enable the Receiver
+  USART1->CR1 |= (USART_CR1_TE); // TE = 1... Enable Transmitter
+}
+
 /**
  * @}
  */
